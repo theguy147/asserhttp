@@ -26,11 +26,9 @@ impl HeaderAccessor for AxumResponse {
 
 impl BodyAccessor for AxumResponse {
     fn get_bytes(&mut self) -> anyhow::Result<Vec<u8>> {
-        use axum::body::HttpBody as _;
-        let mut buf: Vec<u8> = vec![];
-        while let Some(Ok(chunk)) = futures_lite::future::block_on(self.body_mut().data()) {
-            chunk.into_iter().for_each(|b| buf.push(b));
-        }
-        Ok(buf)
+        let body = std::mem::take(self.body_mut());
+        let bytes = futures_lite::future::block_on(axum::body::to_bytes(body, usize::MAX))?;
+        *self.body_mut() = axum::body::Body::from(bytes.clone());
+        Ok(bytes.to_vec())
     }
 }
